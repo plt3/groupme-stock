@@ -1,20 +1,46 @@
-import yfinance as yf
 import pytz
+import json
+import yfinance as yf
 from datetime import datetime, timedelta
+from tickerNames import TICKER_NAMES, AVERAGE_LENGTHS
 
-TICKER_NAME = 'SPY'
 
-timezone = pytz.timezone('US/Eastern')
-today = datetime.now(tz=timezone)
-startFor100 = today - timedelta(days=170)
+def getTwoSums(ticker, averages):
 
-ticker = yf.Ticker(TICKER_NAME)
-df = ticker.history(start=startFor100.strftime('%Y-%m-%d'),
-                    end=today.strftime('%Y-%m-%d'), actions=False)
+    ''' 
+    return dictionary where each key is a number from averages variable and
+    value is the sum of the ticker's close prices for the last number - 1 days
+    '''
 
-last29Sum = str(round(df.tail(29)['Close'].sum(), 2))
-last99Sum = str(round(df.tail(99)['Close'].sum(), 2))
+    timezone = pytz.timezone('US/Eastern')
+    today = datetime.now(tz=timezone)
+    longestAvg = max([max(tup) for tup in averages])
+    getAtLeastNDays = 1.7  # since stock market is only open Monday-Friday
+    longStart = today - timedelta(days=longestAvg * getAtLeastNDays)
 
-with open('29_99_day_sums.txt', 'w') as f:
-    f.write(f'{last29Sum}\n{last99Sum}')
+    tickerObj = yf.Ticker(ticker)
+    df = tickerObj.history(start=longStart.strftime('%Y-%m-%d'),
+                           end=today.strftime('%Y-%m-%d'), actions=False)
 
+    sumDict = {}
+
+    for shortAvg, longAvg in averages:
+        shortSum = round(df.tail(shortAvg - 1)['Close'].sum(), 2)
+        longSum = round(df.tail(longAvg - 1)['Close'].sum(), 2)
+
+        sumDict[shortAvg] = shortSum
+        sumDict[longAvg] = longSum
+
+    return sumDict
+
+
+def main():
+    tickerSumDict = {name: getTwoSums(name, AVERAGE_LENGTHS) for name in
+                     TICKER_NAMES}
+
+    with open('tickerSums.json', 'w') as f:
+        json.dump(tickerSumDict, f, indent=2)
+
+
+if __name__ == '__main__':
+    main()

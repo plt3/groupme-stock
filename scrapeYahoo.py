@@ -1,9 +1,11 @@
 import requests
 import bs4
+from tickerNames import TICKER_NAMES
 
 
-def getPrice():
-    res = requests.get('https://finance.yahoo.com/quote/%5EGSPC?p=%5EGSPC')
+def getPrice(ticker):  # get current price for given ticker
+    url = f'https://finance.yahoo.com/quote/{ticker}'
+    res = requests.get(url)
     res.raise_for_status()
 
     soup = bs4.BeautifulSoup(res.text, 'lxml')
@@ -12,7 +14,7 @@ def getPrice():
     rawPrice = priceSpan.getText()
     price = float(rawPrice.replace(',', ''))
 
-    return price / 10
+    return price
 
 
 with open('29_99_day_sums.txt') as f:
@@ -23,7 +25,7 @@ if open('bearishBool.txt').read() == '30>100':
 else:
     bearishBool = True
 
-nowPrice = getPrice()
+nowPrice = getPrice(TICKER_NAME)
 sma30 = (last29Sum + nowPrice) / 30
 sma100 = (last99Sum + nowPrice) / 100
 
