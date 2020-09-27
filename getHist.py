@@ -56,6 +56,11 @@ def main():
         from scrapeYahoo import runAll
         runAll(fileExists=False)
 
+    if datetime.now().weekday() == 0:
+        from utils import sendGroupMe
+        niceDate = datetime.now().strftime('%-m/%-d/%Y')
+        sendGroupMe(f'WEEKLY CHECK: bot is still working as of {niceDate}')
+
 
 if __name__ == '__main__':
     main()
