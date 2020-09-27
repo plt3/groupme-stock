@@ -1,6 +1,11 @@
+import json
 import requests
 import bs4
-from tickerNames import TICKER_NAMES
+from tickerNames import TICKER_NAMES, AVERAGE_LENGTHS
+
+# NOTE: in the json, 'true' as the value means that the shorter sma > longer
+# sma. So '30:100': 'true day' means that sma30 > sma100 for that run during
+# the day
 
 
 def getPrice(ticker):  # get current price for given ticker
@@ -17,35 +22,62 @@ def getPrice(ticker):  # get current price for given ticker
     return price
 
 
-with open('29_99_day_sums.txt') as f:
-    last29Sum, last99Sum = [float(n) for n in f.read().split('\n')]
+def checkBools(ticker, old, new, avgTup, file):
+    if file and old.split()[0] != new.split()[0] and not old.startswith('same'):
+        if new.startswith('true'):
+            switch = 'bullish'
+        else:
+            switch = 'bearish'
 
-if open('bearishBool.txt').read() == '30>100':
-    bearishBool = False
-else:
-    bearishBool = True
+        message = f'{ticker} became {switch} on {avgTup[0]}, {avgTup[1]} interval.'
 
-nowPrice = getPrice(TICKER_NAME)
-sma30 = (last29Sum + nowPrice) / 30
-sma100 = (last99Sum + nowPrice) / 100
+        if old.endswith('night'):
+            message += ' However, this happened overnight.'
 
-if sma30 > sma100:
-    nowBear = False
-elif sma30 < sma100:
-    nowBear = True
-else:
-    nowBear = bearishBool
-    print('Placeholder for going apeshit in the Discord')
+        print(message)  # make it actually send to the groupme here
 
-if nowBear != bearishBool:
-    print('Placeholder for going apeshit in the Discord')
 
-with open('bearishBool.txt', 'w') as f:
-    if nowBear:
-        f.write('30<100')
+def runAll(fileExists=True):
+    with open('tickerSums.json') as f:
+        sumData = json.load(f)
+
+    if fileExists:
+        with open('smaBools.json') as f:
+            boolDict = json.load(f)
     else:
-        f.write('30>100')
+        boolDict = {}
 
-# check that all the logic is right and hit a different conditional if it's
-# the first run of the day
-# also try to modularize and add support for different date ranges
+    for tickerName in TICKER_NAMES:
+        price = getPrice(tickerName)
+        if not fileExists:
+            boolDict[tickerName] = {}
+
+        for tup in AVERAGE_LENGTHS:
+            if fileExists:
+                oldVal = boolDict[tickerName][f'{tup[0]}:{tup[1]}']
+            else:
+                oldVal = ''
+
+            shortSMA = round((sumData[tickerName][str(tup[0])] + price) / tup[0], 2)
+            longSMA = round((sumData[tickerName][str(tup[1])] + price) / tup[1], 2)
+
+            if shortSMA > longSMA:
+                checkBools(tickerName, oldVal, 'true', tup, fileExists)
+                boolDict[tickerName][f'{tup[0]}:{tup[1]}'] = 'true'
+            elif shortSMA < longSMA:
+                checkBools(tickerName, oldVal, 'false', tup, fileExists)
+                boolDict[tickerName][f'{tup[0]}:{tup[1]}'] = 'false'
+            else:
+                print('wow the two are exactly the same')  # also text groupme here
+                boolDict[tickerName][f'{tup[0]}:{tup[1]}'] = 'same'
+
+    with open('smaBools.json', 'w') as f:
+        json.dump(boolDict, f, indent=2)
+
+
+def main():
+    runAll()
+
+if __name__ == '__main__':
+    main()
+

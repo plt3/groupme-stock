@@ -1,5 +1,6 @@
-import pytz
+import os
 import json
+import pytz
 import yfinance as yf
 from datetime import datetime, timedelta
 from tickerNames import TICKER_NAMES, AVERAGE_LENGTHS
@@ -40,6 +41,20 @@ def main():
 
     with open('tickerSums.json', 'w') as f:
         json.dump(tickerSumDict, f, indent=2)
+
+    if os.path.exists('smaBools.json'):
+        with open('smaBools.json') as f:
+            sumData = json.load(f)
+
+        for ticker in sumData.keys():
+            for interval in sumData[ticker].keys():
+                sumData[ticker][interval] += ' night'
+
+        with open('smaBools.json', 'w') as f:
+            json.dump(sumData, f, indent=2)
+    else:
+        from scrapeYahoo import runAll
+        runAll(fileExists=False)
 
 
 if __name__ == '__main__':
